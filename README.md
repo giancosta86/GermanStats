@@ -24,11 +24,11 @@ The project consists of 2 scripts:
 
 ## Running the scripts
 
-0. Download the [German Wiktionary source file](http://download.wikipedia.org/dewiktionary/latest/dewiktionary-latest-pages-articles.xml.bz2) into the project's directory and decompress it; rename the **.xml** file to **source.xml**
+1. Download the [German Wiktionary source file](http://download.wikipedia.org/dewiktionary/latest/dewiktionary-latest-pages-articles.xml.bz2) into the project's directory and decompress it; rename the **.xml** file to **source.xml**
 
-0. Run **./Extractor.py** within such directory - with no arguments (it is an executable Python 3 script): it should create **corpus.csv**
+1. Run **./Extractor.py** within such directory - with no arguments (it is an executable Python 3 script): it should create **corpus.csv**
 
-0. Run **scala GermanStats.scala** within the same directory, to create several **.yml** files
+1. Run **scala GermanStats.scala** within the same directory, to create several **.yml** files
 
 
 
