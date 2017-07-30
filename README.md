@@ -39,3 +39,5 @@ The project consists of 2 scripts:
 * [Scala](https://www.scala-lang.org/)
 
 * [Python](https://www.python.org/)
+
+* [Wiktionary](https://www.wiktionary.org/)
