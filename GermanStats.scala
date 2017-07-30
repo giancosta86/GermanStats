@@ -17,7 +17,7 @@
 */
 
 import java.io.PrintWriter
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
 
 import scala.io.Source
 
@@ -104,17 +104,37 @@ mainFunction()
 
 
 def mainFunction() {
-  println("Loading words...")
+  println("== LOADING WORDS ==")
+  println()
 
   val words =
     loadWords()
 
   println(words.size + " words found!")
+  println()
+  println()
 
+
+  computeGenderStatsByEnding(words)
+}
+
+
+def computeGenderStatsByEnding(words: Iterable[GermanWord]): Unit = {
   val genderStatsByEnding =
-    computeGenderStatsByEnding(words)
+    computeGenderStatsByGrouping(
+      words,
+      (endingLength, nominative) => nominative.substring(
+        nominative.length - endingLength
+      )
+    )
 
-  writeGenderStatsByEnding(genderStatsByEnding)
+  println("== COMPUTING GENDER STATS BY ENDING ==")
+  println()
+
+  writeGenderStatsByGrouping(
+    Paths.get("genderStatsByEnding.yml"),
+    genderStatsByEnding
+  )
 
   val filteredGenderStatsByEnding =
     compactStats(
@@ -123,7 +143,13 @@ def mainFunction() {
       1.0
     )
 
-  writeGenderStatsByEndingAndRelevance(filteredGenderStatsByEnding)
+  writeGenderStatsByGroupingAndRelevance(
+    Paths.get("genderStatsByEndingAndRelevance.yml"),
+    filteredGenderStatsByEnding
+  )
+  println()
+  println()
+  println()
 }
 
 
@@ -178,36 +204,33 @@ def loadWords(): List[GermanWord] = {
 
 
 
-def computeGenderStatsByEnding(words: Iterable[GermanWord]): Map[Int, Map[String, GenderStats]] = {
-  val MAX_ENDING_LENGTH = 6
-  val MIN_GROUPED_WORDS_COUNT = 100
-
+def computeGenderStatsByGrouping(
+                                  words: Iterable[GermanWord],
+                                  groupingFunction: (Int, String) => String,
+                                  maxGroupingLength: Int = 6,
+                                  minGroupedWordsCount: Long = 100
+                                ): Map[Int, Map[String, GenderStats]] = {
   Range
-    .inclusive(1, MAX_ENDING_LENGTH)
-    .map(endingLength =>
-      endingLength ->
+    .inclusive(1, maxGroupingLength)
+    .map(groupingLength =>
+      groupingLength ->
         words
           .filter(
-            _.singularNominative.length >= MAX_ENDING_LENGTH
+            _.singularNominative.length >= maxGroupingLength
           )
           .groupBy(word => {
-            val nominative =
+            groupingFunction(
+              groupingLength,
               word.singularNominative
-
-            val ending =
-              nominative.substring(
-                nominative.length - endingLength
-              )
-
-            ending
+            )
           })
           .filter {
-            case (ending, groupedWords) =>
-              groupedWords.size >= MIN_GROUPED_WORDS_COUNT
+            case (grouping, groupedWords) =>
+              groupedWords.size >= minGroupedWordsCount
           }
           .map {
-            case (ending, groupedWords) =>
-              ending -> GenderStats(
+            case (grouping, groupedWords) =>
+              grouping -> GenderStats(
                 groupedWords
               )
           }
@@ -256,33 +279,34 @@ def compactStats(
 }
 
 
-def writeGenderStatsByEnding(statsMap: Map[Int, Map[String, GenderStats]]): Unit = {
-  val STATS_FILE = "genderStatsByEnding.yml"
-
-  val outputWriter = new PrintWriter(Files.newBufferedWriter(Paths.get(STATS_FILE)))
+def writeGenderStatsByGrouping(
+                              outputFilePath: Path,
+                              statsMap: Map[Int, Map[String, GenderStats]]
+                              ): Unit = {
+  val outputWriter = new PrintWriter(Files.newBufferedWriter(outputFilePath))
 
   try {
     statsMap
       .keys
       .toList
       .sorted
-      .foreach(endingLength => {
-        println(s"*** GROUPING WORDS ACCORDING TO THE LAST ${endingLength} LETTER(S) ***")
+      .foreach(groupingLength => {
+        println(s"=== GROUPING WORDS WITH GROUPING STRINGS OF ${groupingLength} LETTER(S) ===")
         println()
 
-        outputWriter.println(s"${endingLength}:")
+        outputWriter.println(s"${groupingLength}:")
 
 
         val groupingStats =
-          statsMap(endingLength)
+          statsMap(groupingLength)
 
 
         groupingStats
           .toList
           .sortBy(_._1)
           .foreach {
-            case (ending, stats) =>
-              writeGenderStats(outputWriter, ending, stats, 1)
+            case (groupingString, stats) =>
+              writeGenderStats(outputWriter, groupingString, stats, 1)
           }
 
         println()
@@ -312,13 +336,15 @@ def writeGenderStats(outputWriter: PrintWriter, groupingString: String, stats: G
 }
 
 
-def writeGenderStatsByEndingAndRelevance(statsMap: Map[Int, Map[String, GenderStats]]): Unit = {
-  val STATS_FILE = "genderStatsByEndingAndRelevance.yml"
-
-  val outputWriter = new PrintWriter(Files.newBufferedWriter(Paths.get(STATS_FILE)))
+def writeGenderStatsByGroupingAndRelevance(
+                                          outputFilePath: Path,
+                                          statsMap: Map[Int, Map[String, GenderStats]]
+                                        ): Unit = {
+  val outputWriter = new PrintWriter(Files.newBufferedWriter(outputFilePath))
 
   try {
-    println(s"*** SORTING STATS BY RELEVANCE ***")
+    println(s"=== SORTING STATS BY RELEVANCE ===")
+    println()
 
     val statsSortedByRelevance =
       statsMap
@@ -326,15 +352,15 @@ def writeGenderStatsByEndingAndRelevance(statsMap: Map[Int, Map[String, GenderSt
         .flatten
         .toList
         .sortBy {
-          case (ending, stats) =>
+          case (groupingString, stats) =>
             stats.relevance
         }
         .reverse
 
     statsSortedByRelevance
       .foreach {
-        case (ending, stats) =>
-          writeGenderStats(outputWriter, ending, stats, 0)
+        case (groupingString, stats) =>
+          writeGenderStats(outputWriter, groupingString, stats, 0)
       }
 
     println()
