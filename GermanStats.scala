@@ -115,11 +115,23 @@ def mainFunction() {
   println()
 
 
-  computeGenderStatsByEnding(words)
+  val outputDirPath = Paths.get("outputStats")
+  Files.createDirectories(outputDirPath)
+
+
+  computeGenderStatsByEnding(
+    outputDirPath,
+    words
+  )
+
+  computeGenderStatsByBeginning(
+    outputDirPath,
+    words
+  )
 }
 
 
-def computeGenderStatsByEnding(words: Iterable[GermanWord]): Unit = {
+def computeGenderStatsByEnding(outputDirPath: Path, words: Iterable[GermanWord]): Unit = {
   val genderStatsByEnding =
     computeGenderStatsByGrouping(
       words,
@@ -132,7 +144,7 @@ def computeGenderStatsByEnding(words: Iterable[GermanWord]): Unit = {
   println()
 
   writeGenderStatsByGrouping(
-    Paths.get("genderStatsByEnding.yml"),
+    outputDirPath.resolve("genderStatsByEnding.yml"),
     genderStatsByEnding
   )
 
@@ -144,9 +156,44 @@ def computeGenderStatsByEnding(words: Iterable[GermanWord]): Unit = {
     )
 
   writeGenderStatsByGroupingAndRelevance(
-    Paths.get("genderStatsByEndingAndRelevance.yml"),
+    outputDirPath.resolve("genderStatsByEndingAndRelevance.yml"),
     filteredGenderStatsByEnding
   )
+
+  println()
+  println()
+  println()
+}
+
+
+
+def computeGenderStatsByBeginning(outputDirPath: Path, words: Iterable[GermanWord]): Unit = {
+  val genderStatsByBeginning =
+    computeGenderStatsByGrouping(
+      words,
+      (beginningLength, nominative) => nominative.substring(0, beginningLength)
+    )
+
+  println("== COMPUTING GENDER STATS BY BEGINNING ==")
+  println()
+
+  writeGenderStatsByGrouping(
+    outputDirPath.resolve("genderStatsByBeginning.yml"),
+    genderStatsByBeginning
+  )
+
+  val filteredGenderStatsByBeginning =
+    compactStats(
+      genderStatsByBeginning,
+      (potentiallyImplying, potentiallyImplied) => potentiallyImplied.startsWith(potentiallyImplying),
+      1.0
+    )
+
+  writeGenderStatsByGroupingAndRelevance(
+    outputDirPath.resolve("genderStatsByBeginningAndRelevance.yml"),
+    filteredGenderStatsByBeginning
+  )
+
   println()
   println()
   println()
@@ -280,8 +327,8 @@ def compactStats(
 
 
 def writeGenderStatsByGrouping(
-                              outputFilePath: Path,
-                              statsMap: Map[Int, Map[String, GenderStats]]
+                                outputFilePath: Path,
+                                statsMap: Map[Int, Map[String, GenderStats]]
                               ): Unit = {
   val outputWriter = new PrintWriter(Files.newBufferedWriter(outputFilePath))
 
@@ -337,9 +384,9 @@ def writeGenderStats(outputWriter: PrintWriter, groupingString: String, stats: G
 
 
 def writeGenderStatsByGroupingAndRelevance(
-                                          outputFilePath: Path,
-                                          statsMap: Map[Int, Map[String, GenderStats]]
-                                        ): Unit = {
+                                            outputFilePath: Path,
+                                            statsMap: Map[Int, Map[String, GenderStats]]
+                                          ): Unit = {
   val outputWriter = new PrintWriter(Files.newBufferedWriter(outputFilePath))
 
   try {
