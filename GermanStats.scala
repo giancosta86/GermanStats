@@ -22,7 +22,7 @@ import java.nio.file.{Files, Path, Paths}
 import scala.io.Source
 
 
-case class GermanWord(
+case class GermanNoun(
                        singularNominative: String,
                        gender: String,
                        singularGenitive: Option[String],
@@ -31,14 +31,14 @@ case class GermanWord(
 
 
 case class GenderStats(
-                        words: Iterable[GermanWord]
+                        nouns: Iterable[GermanNoun]
                       ) {
-  require(words.nonEmpty)
+  require(nouns.nonEmpty)
 
 
   val (masculineCount, neuterCount, feminineCount): (Long, Long, Long) = {
     val genderMap =
-      words
+      nouns
         .groupBy(_.gender)
 
     (
@@ -104,13 +104,13 @@ mainFunction()
 
 
 def mainFunction() {
-  println("== LOADING WORDS ==")
+  println("== LOADING NOUNS ==")
   println()
 
-  val words =
-    loadWords()
+  val nouns =
+    loadNouns()
 
-  println(words.size + " words found!")
+  println(nouns.size + " nouns found!")
   println()
   println()
 
@@ -121,20 +121,20 @@ def mainFunction() {
 
   computeGenderStatsByEnding(
     outputDirPath,
-    words
+    nouns
   )
 
   computeGenderStatsByBeginning(
     outputDirPath,
-    words
+    nouns
   )
 }
 
 
-def computeGenderStatsByEnding(outputDirPath: Path, words: Iterable[GermanWord]): Unit = {
+def computeGenderStatsByEnding(outputDirPath: Path, nouns: Iterable[GermanNoun]): Unit = {
   val genderStatsByEnding =
     computeGenderStatsByGrouping(
-      words,
+      nouns,
       (endingLength, nominative) => nominative.substring(
         nominative.length - endingLength
       )
@@ -167,10 +167,10 @@ def computeGenderStatsByEnding(outputDirPath: Path, words: Iterable[GermanWord])
 
 
 
-def computeGenderStatsByBeginning(outputDirPath: Path, words: Iterable[GermanWord]): Unit = {
+def computeGenderStatsByBeginning(outputDirPath: Path, nouns: Iterable[GermanNoun]): Unit = {
   val genderStatsByBeginning =
     computeGenderStatsByGrouping(
-      words,
+      nouns,
       (beginningLength, nominative) => nominative.substring(0, beginningLength)
     )
 
@@ -202,7 +202,7 @@ def computeGenderStatsByBeginning(outputDirPath: Path, words: Iterable[GermanWor
 
 
 
-def loadWords(): List[GermanWord] = {
+def loadNouns(): List[GermanNoun] = {
   val CORPUS_FILE = "corpus.csv"
 
   val EMPTY_FIELD = "—"
@@ -212,17 +212,17 @@ def loadWords(): List[GermanWord] = {
     .fromFile(CORPUS_FILE)
     .getLines
     .map(corpusLine => {
-      val wordElements =
+      val nounElements =
         corpusLine.split(',')
 
       val singularNominative =
-        wordElements(0)
+        nounElements(0)
 
       val gender =
-        wordElements(1)
+        nounElements(1)
 
       val singularGenitive =
-        wordElements(2) match {
+        nounElements(2) match {
           case `EMPTY_FIELD` =>
             None
           case anyValue =>
@@ -231,7 +231,7 @@ def loadWords(): List[GermanWord] = {
 
 
       val pluralNominative =
-        wordElements(3) match {
+        nounElements(3) match {
           case `EMPTY_FIELD` =>
             None
           case anyValue =>
@@ -239,7 +239,7 @@ def loadWords(): List[GermanWord] = {
         }
 
 
-      GermanWord(
+      GermanNoun(
         singularNominative,
         gender,
         singularGenitive,
@@ -252,33 +252,33 @@ def loadWords(): List[GermanWord] = {
 
 
 def computeGenderStatsByGrouping(
-                                  words: Iterable[GermanWord],
+                                  nouns: Iterable[GermanNoun],
                                   groupingFunction: (Int, String) => String,
                                   maxGroupingLength: Int = 6,
-                                  minGroupedWordsCount: Long = 100
+                                  minGroupedNounsCount: Long = 100
                                 ): Map[Int, Map[String, GenderStats]] = {
   Range
     .inclusive(1, maxGroupingLength)
     .map(groupingLength =>
       groupingLength ->
-        words
+        nouns
           .filter(
             _.singularNominative.length >= maxGroupingLength
           )
-          .groupBy(word => {
+          .groupBy(noun => {
             groupingFunction(
               groupingLength,
-              word.singularNominative
+              noun.singularNominative
             )
           })
           .filter {
-            case (grouping, groupedWords) =>
-              groupedWords.size >= minGroupedWordsCount
+            case (grouping, groupedNouns) =>
+              groupedNouns.size >= minGroupedNounsCount
           }
           .map {
-            case (grouping, groupedWords) =>
+            case (grouping, groupedNouns) =>
               grouping -> GenderStats(
-                groupedWords
+                groupedNouns
               )
           }
     )
@@ -338,7 +338,7 @@ def writeGenderStatsByGrouping(
       .toList
       .sorted
       .foreach(groupingLength => {
-        println(s"=== GROUPING WORDS WITH GROUPING STRINGS OF ${groupingLength} LETTER(S) ===")
+        println(s"=== GROUPING NOUNS WITH GROUPING STRINGS OF ${groupingLength} LETTER(S) ===")
         println()
 
         outputWriter.println(s"${groupingLength}:")
