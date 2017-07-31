@@ -1,3 +1,4 @@
+
 /*
   ===========================================================================
   GermanStats
@@ -19,6 +20,7 @@
 import java.io.PrintWriter
 import java.nio.file.{Files, Path, Paths}
 
+import scala.annotation.tailrec
 import scala.io.Source
 
 
@@ -128,6 +130,12 @@ def mainFunction() {
     outputDirPath,
     nouns
   )
+
+
+  computePluralsByEndingAndGender(
+    outputDirPath,
+    nouns
+  )
 }
 
 
@@ -135,9 +143,7 @@ def computeGenderStatsByEnding(outputDirPath: Path, nouns: Iterable[GermanNoun])
   val genderStatsByEnding =
     computeGenderStatsByGrouping(
       nouns,
-      (endingLength, nominative) => nominative.substring(
-        nominative.length - endingLength
-      )
+      (endingLength, nominative) => getEnding(endingLength, nominative)
     )
 
   println("== COMPUTING GENDER STATS BY ENDING ==")
@@ -149,7 +155,7 @@ def computeGenderStatsByEnding(outputDirPath: Path, nouns: Iterable[GermanNoun])
   )
 
   val filteredGenderStatsByEnding =
-    compactStats(
+    compactGenderStats(
       genderStatsByEnding,
       (potentiallyImplying, potentiallyImplied) => potentiallyImplied.endsWith(potentiallyImplying),
       1.0
@@ -166,40 +172,11 @@ def computeGenderStatsByEnding(outputDirPath: Path, nouns: Iterable[GermanNoun])
 }
 
 
-
-def computeGenderStatsByBeginning(outputDirPath: Path, nouns: Iterable[GermanNoun]): Unit = {
-  val genderStatsByBeginning =
-    computeGenderStatsByGrouping(
-      nouns,
-      (beginningLength, nominative) => nominative.substring(0, beginningLength)
-    )
-
-  println("== COMPUTING GENDER STATS BY BEGINNING ==")
-  println()
-
-  writeGenderStatsByGrouping(
-    outputDirPath.resolve("genderStatsByBeginning.yml"),
-    genderStatsByBeginning
+def getEnding(endingLength: Int, word: String): String = {
+  word.substring(
+    word.length - endingLength
   )
-
-  val filteredGenderStatsByBeginning =
-    compactStats(
-      genderStatsByBeginning,
-      (potentiallyImplying, potentiallyImplied) => potentiallyImplied.startsWith(potentiallyImplying),
-      1.0
-    )
-
-  writeGenderStatsByGroupingAndRelevance(
-    outputDirPath.resolve("genderStatsByBeginningAndRelevance.yml"),
-    filteredGenderStatsByBeginning
-  )
-
-  println()
-  println()
-  println()
 }
-
-
 
 
 def loadNouns(): List[GermanNoun] = {
@@ -286,11 +263,11 @@ def computeGenderStatsByGrouping(
 }
 
 
-def compactStats(
-                  statsMap: Map[Int, Map[String, GenderStats]],
-                  implicationOnGroupingStrings: (String, String) => Boolean,
-                  maxHighestPercentageDeltaForImplication: Double
-                ): Map[Int, Map[String, GenderStats]] = {
+def compactGenderStats(
+                        statsMap: Map[Int, Map[String, GenderStats]],
+                        implicationOnGroupingStrings: (String, String) => Boolean,
+                        maxHighestPercentageDeltaForImplication: Double
+                      ): Map[Int, Map[String, GenderStats]] = {
   statsMap
     .map {
       case (groupingStringLength, groupingStatsMap) =>
@@ -413,6 +390,344 @@ def writeGenderStatsByGroupingAndRelevance(
     println()
     println()
 
+  } finally {
+    outputWriter.close()
+  }
+}
+
+
+def computeGenderStatsByBeginning(outputDirPath: Path, nouns: Iterable[GermanNoun]): Unit = {
+  val genderStatsByBeginning =
+    computeGenderStatsByGrouping(
+      nouns,
+      (beginningLength, nominative) => nominative.substring(0, beginningLength)
+    )
+
+  println("== COMPUTING GENDER STATS BY BEGINNING ==")
+  println()
+
+  writeGenderStatsByGrouping(
+    outputDirPath.resolve("genderStatsByBeginning.yml"),
+    genderStatsByBeginning
+  )
+
+  val filteredGenderStatsByBeginning =
+    compactGenderStats(
+      genderStatsByBeginning,
+      (potentiallyImplying, potentiallyImplied) => potentiallyImplied.startsWith(potentiallyImplying),
+      1.0
+    )
+
+  writeGenderStatsByGroupingAndRelevance(
+    outputDirPath.resolve("genderStatsByBeginningAndRelevance.yml"),
+    filteredGenderStatsByBeginning
+  )
+
+  println()
+  println()
+  println()
+}
+
+
+
+
+type ReplacedEnding = String
+
+type AddedEnding = String
+
+
+case class PluralTransform(noun: GermanNoun) extends Ordered[PluralTransform] {
+  val (hasApophony, replacedEndingOption, addedEndingOption): (Boolean, Option[ReplacedEnding], Option[AddedEnding]) = {
+    val singularCharsList =
+      noun.singularNominative.toCharArray.toList
+
+    val pluralCharsList =
+      noun.pluralNominative.get.toCharArray.toList
+
+    computePluralTransformElements(singularCharsList, pluralCharsList, apophonyFound = false)
+  }
+
+  @tailrec
+  private def computePluralTransformElements(singularCharsList: List[Char], pluralCharsList: List[Char], apophonyFound: Boolean): (Boolean, Option[ReplacedEnding], Option[AddedEnding]) = {
+    singularCharsList match {
+      case Nil =>
+        (
+          apophonyFound,
+          None,
+          buildEndingOptionFromList(pluralCharsList)
+        )
+
+      case singularHead :: singularTail =>
+        val pluralHead :: pluralTail =
+          pluralCharsList
+
+        if (singularHead == pluralHead)
+          computePluralTransformElements(singularTail, pluralTail, apophonyFound)
+        else if (!apophonyFound) {
+          val currentHeadHasApophony =
+            targetHasApophony(singularHead, pluralHead)
+
+          if (currentHeadHasApophony)
+            computePluralTransformElements(singularTail, pluralTail, apophonyFound = true)
+          else
+            (
+              false,
+              buildEndingOptionFromList(singularCharsList),
+              buildEndingOptionFromList(pluralCharsList)
+            )
+        } else {
+          (
+            true,
+            buildEndingOptionFromList(singularCharsList),
+            buildEndingOptionFromList(pluralCharsList)
+          )
+        }
+    }
+  }
+
+
+  override def compare(that: PluralTransform): Int =
+    toString.compareTo(that.toString)
+
+
+  override def toString: String = {
+    val addingLine =
+      if (hasApophony)
+        "⸚"
+      else
+        "-"
+
+    addedEndingOption match {
+      case Some(addedEnding) =>
+        replacedEndingOption match {
+          case Some(replacedEnding) =>
+            s"-${replacedEnding} ⇒ ${addingLine}${addedEnding}"
+
+          case None =>
+            s"${addingLine}${addedEnding}"
+        }
+
+      case None =>
+        addingLine
+    }
+  }
+}
+
+
+def buildEndingOptionFromList(source: List[Char]): Option[String] =
+  source match {
+    case Nil =>
+      None
+
+    case _ =>
+      Some(new String(source.toArray))
+  }
+
+
+def targetHasApophony(source: Char, target: Char): Boolean =
+  (source == 'A' && target == 'Ä') ||
+    (source == 'a' && target == 'ä') ||
+    (source == 'O' && target == 'Ö') ||
+    (source == 'o' && target == 'ö') ||
+    (source == 'U' && target == 'Ü') ||
+    (source == 'u' && target == 'ü')
+
+
+case class FrequencyTracker[T](item: T, frequency: Int, universeCount: Int) {
+  val percentage: Double =
+    frequency * 100.0 / universeCount
+}
+
+
+case class FrequencyCounter[T](items: Iterable[T]) {
+  private val universeCount =
+    items.size
+
+  val frequencies: List[FrequencyTracker[T]] =
+    items
+      .groupBy(item => item)
+      .map {
+        case (item, occurrences) =>
+          FrequencyTracker(
+            item,
+            occurrences.size,
+            universeCount
+          )
+      }
+      .toList
+      .sortBy(_.frequency)
+}
+
+
+def computePluralsByEndingAndGender(
+                                     outputDirPath: Path,
+                                     nouns: Iterable[GermanNoun],
+                                     maxEndingLength: Int = 7,
+                                     minNounsCountPerRule: Int = 50
+                                   ): Unit = {
+
+  println("== COMPUTING PLURAL RULES BY ENDING AND GENDER ==")
+  println()
+
+  val outputFilePath = outputDirPath.resolve("pluralByEndingAndGender.yml")
+
+  val nounsWithPlural =
+    nouns
+      .filter(_.pluralNominative.nonEmpty)
+
+  val rules =
+    Range.inclusive(1, maxEndingLength)
+      .flatMap(endingLength => {
+        nounsWithPlural
+          .filter(
+            _.singularNominative.length >= endingLength
+          )
+          .groupBy(noun => {
+            val ending =
+              getEnding(endingLength, noun.singularNominative)
+
+            (
+              ending,
+              noun.gender
+            )
+          })
+          .filter {
+            case ((ending, gender), groupedNouns) =>
+              groupedNouns.size >= minNounsCountPerRule
+          }
+          .filter {
+            case ((ending, gender), groupedNouns) =>
+              Character.isLowerCase(ending(0))
+          }
+          .map {
+            case ((ending, gender), groupedNouns) =>
+              (ending, gender) ->
+                groupedNouns.map(PluralTransform)
+          }
+          .map {
+            case ((ending, gender), transforms) =>
+              (ending, gender) ->
+                FrequencyCounter[String](
+                  transforms.map(_.toString)
+                )
+                  .frequencies
+                  .reverse
+          }
+      })
+
+
+  println(s"Rules ready: ${rules.size}")
+
+  val compactRules =
+    rules
+      .filter {
+        case ((ending, gender), transformFrequencies) =>
+          !rules
+            .filter {
+              case ((rawEnding, _), _) =>
+                rawEnding.length < ending.length
+            }
+            .exists {
+              case ((rawEnding, rawGender), rawTransformFrequencies) =>
+                ending.endsWith(rawEnding) &&
+                  (gender == rawGender) &&
+                  (transformFrequencies.map(_.item).toSet == rawTransformFrequencies.map(_.item).toSet)
+            }
+      }
+      .toMap
+      .groupBy {
+        case ((ending, gender), transformFrequencies) =>
+          transformFrequencies.size
+      }
+
+
+  println(s"Compact rules ready: ${compactRules.values.map(_.size).sum}")
+
+  println()
+
+  writePluralByEndingAndGender(
+    outputFilePath,
+    compactRules
+  )
+
+  println()
+  println()
+  println()
+}
+
+
+def writePluralByEndingAndGender(
+                                  outputFilePath: Path,
+                                  rulesMap: Map[Int, Map[(String, String), List[FrequencyTracker[String]]]],
+                                  minFrequencyPercentage: Double = 1
+                                ): Unit = {
+  val outputWriter = new PrintWriter(Files.newBufferedWriter(outputFilePath))
+
+  try {
+    val sortedRules =
+      rulesMap
+        .map {
+          case (transformsCount, pluralRules) =>
+            transformsCount ->
+              pluralRules
+                .toList
+                .map {
+                  case ((ending, gender), transformFrequencies) =>
+                    (ending, gender) ->
+                      transformFrequencies
+                        .filter(
+                          _.percentage >= minFrequencyPercentage
+                        )
+                }
+                .filter {
+                  case ((ending, gender), transformFrequencies) =>
+                    transformFrequencies.nonEmpty
+                }
+                .sortBy {
+                  case ((ending, gender), transformFrequencies) =>
+                    (
+                      transformFrequencies.head.percentage,
+                      ending,
+                      gender
+                    )
+                }
+        }
+        .filter {
+          case (transformsCount, pluralRules) =>
+            pluralRules.nonEmpty
+        }
+        .toList
+        .sortBy {
+          case (transformsCount, pluralRules) =>
+            transformsCount
+        }
+
+
+    sortedRules
+      .foreach {
+        case (transformsCount, pluralRules) =>
+          outputWriter.println(s"${transformsCount}:")
+
+          pluralRules
+            .foreach {
+              case ((ending, gender), transformFrequencies) =>
+                outputWriter.println(" - ")
+                outputWriter.println(s"   ending: ${ending}")
+                outputWriter.println(s"   gender: ${gender}")
+                outputWriter.println(s"   totalCount: ${transformFrequencies.head.universeCount}")
+                outputWriter.println(s"   maxPercentage: ${transformFrequencies.head.percentage}")
+                outputWriter.println(s"   transformFrequencies:")
+
+                transformFrequencies
+                  .foreach(transformFrequency => {
+                    outputWriter.println(s"    - ")
+
+                    outputWriter.println(s"      transform: '${transformFrequency.item}'")
+                    outputWriter.println(s"      count: ${transformFrequency.frequency}")
+                    outputWriter.println(f"      percentage: ${transformFrequency.percentage}%.2f")
+                  })
+            }
+      }
   } finally {
     outputWriter.close()
   }
