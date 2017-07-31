@@ -121,12 +121,7 @@ def mainFunction() {
   Files.createDirectories(outputDirPath)
 
 
-  computeGenderStatsByEnding(
-    outputDirPath,
-    nouns
-  )
-
-  computeGenderStatsByBeginning(
+  computeGender(
     outputDirPath,
     nouns
   )
@@ -139,7 +134,27 @@ def mainFunction() {
 }
 
 
-def computeGenderStatsByEnding(outputDirPath: Path, nouns: Iterable[GermanNoun]): Unit = {
+def computeGender(outputDirPath: Path, nouns: Iterable[GermanNoun]): Unit = {
+  val genderDirPath =
+    outputDirPath.resolve("gender")
+
+  Files.createDirectories(genderDirPath)
+
+
+  computeGenderStatsByEnding(
+    genderDirPath,
+    nouns
+  )
+
+
+  computeGenderStatsByBeginning(
+    genderDirPath,
+    nouns
+  )
+}
+
+
+def computeGenderStatsByEnding(genderDirPath: Path, nouns: Iterable[GermanNoun]): Unit = {
   val genderStatsByEnding =
     computeGenderStatsByGrouping(
       nouns,
@@ -150,7 +165,7 @@ def computeGenderStatsByEnding(outputDirPath: Path, nouns: Iterable[GermanNoun])
   println()
 
   writeGenderStatsByGrouping(
-    outputDirPath.resolve("genderStatsByEnding.yml"),
+    genderDirPath.resolve("statsByEnding.yml"),
     genderStatsByEnding
   )
 
@@ -162,7 +177,7 @@ def computeGenderStatsByEnding(outputDirPath: Path, nouns: Iterable[GermanNoun])
     )
 
   writeGenderStatsByGroupingAndRelevance(
-    outputDirPath.resolve("genderStatsByEndingAndRelevance.yml"),
+    genderDirPath.resolve("statsByEndingAndRelevance.yml"),
     filteredGenderStatsByEnding
   )
 
@@ -396,7 +411,7 @@ def writeGenderStatsByGroupingAndRelevance(
 }
 
 
-def computeGenderStatsByBeginning(outputDirPath: Path, nouns: Iterable[GermanNoun]): Unit = {
+def computeGenderStatsByBeginning(genderDirPath: Path, nouns: Iterable[GermanNoun]): Unit = {
   val genderStatsByBeginning =
     computeGenderStatsByGrouping(
       nouns,
@@ -407,7 +422,7 @@ def computeGenderStatsByBeginning(outputDirPath: Path, nouns: Iterable[GermanNou
   println()
 
   writeGenderStatsByGrouping(
-    outputDirPath.resolve("genderStatsByBeginning.yml"),
+    genderDirPath.resolve("statsByBeginning.yml"),
     genderStatsByBeginning
   )
 
@@ -419,7 +434,7 @@ def computeGenderStatsByBeginning(outputDirPath: Path, nouns: Iterable[GermanNou
     )
 
   writeGenderStatsByGroupingAndRelevance(
-    outputDirPath.resolve("genderStatsByBeginningAndRelevance.yml"),
+    genderDirPath.resolve("statsByBeginningAndRelevance.yml"),
     filteredGenderStatsByBeginning
   )
 
