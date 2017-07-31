@@ -735,7 +735,7 @@ def writePluralByEndingAndGender(
                 .sortBy {
                   case ((ending, gender), transformFrequencies) =>
                     (
-                      transformFrequencies.head.percentage,
+                      100 - transformFrequencies.head.percentage,
                       ending,
                       gender
                     )
