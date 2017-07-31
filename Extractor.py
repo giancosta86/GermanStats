@@ -22,10 +22,10 @@ import re
 
 
 nounPattern = re.compile(r"\s*{{Deutsch Substantiv \Sbersicht\s*")
-genderPattern = re.compile(r"\s*\|Genus=(\S+)\s*")
-singularNominativePattern = re.compile(r"\s*\|Nominativ Singular=(\S+)\s*")
-pluralNominativePattern = re.compile(r"\s*\|Nominativ Plural=(\S+)\s*")
-singularGenitivePattern = re.compile(r"\s*\|Genitiv Singular=(\S+)\s*")
+genderPattern = re.compile(r"\s*\|Genus=([mfn]+)\s*")
+singularNominativePattern = re.compile(r"\s*\|Nominativ Singular=([A-Za-zÄäÖöÜüß]+)\s*")
+pluralNominativePattern = re.compile(r"\s*\|Nominativ Plural=([A-Za-zÄäÖöÜüß]+)\s*")
+singularGenitivePattern = re.compile(r"\s*\|Genitiv Singular=([A-Za-zÄäÖöÜüß]+)\s*")
 
 
 currentWord = None
