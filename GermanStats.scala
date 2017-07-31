@@ -117,7 +117,7 @@ def mainFunction() {
   println()
 
 
-  val outputDirPath = Paths.get("outputStats")
+  val outputDirPath = Paths.get("output/stats")
   Files.createDirectories(outputDirPath)
 
 
@@ -127,7 +127,7 @@ def mainFunction() {
   )
 
 
-  computePluralsByEndingAndGender(
+  computePlurals(
     outputDirPath,
     nouns
   )
@@ -165,8 +165,9 @@ def computeGenderStatsByEnding(genderDirPath: Path, nouns: Iterable[GermanNoun])
   println()
 
   writeGenderStatsByGrouping(
-    genderDirPath.resolve("statsByEnding.yml"),
-    genderStatsByEnding
+    genderDirPath.resolve("byEnding.yml"),
+    genderStatsByEnding,
+    ending => "-" + ending
   )
 
   val filteredGenderStatsByEnding =
@@ -177,8 +178,9 @@ def computeGenderStatsByEnding(genderDirPath: Path, nouns: Iterable[GermanNoun])
     )
 
   writeGenderStatsByGroupingAndRelevance(
-    genderDirPath.resolve("statsByEndingAndRelevance.yml"),
-    filteredGenderStatsByEnding
+    genderDirPath.resolve("byEndingAndRelevance.yml"),
+    filteredGenderStatsByEnding,
+    ending => "-" + ending
   )
 
   println()
@@ -320,7 +322,8 @@ def compactGenderStats(
 
 def writeGenderStatsByGrouping(
                                 outputFilePath: Path,
-                                statsMap: Map[Int, Map[String, GenderStats]]
+                                statsMap: Map[Int, Map[String, GenderStats]],
+                                groupingStringProcessor: String => String
                               ): Unit = {
   val outputWriter = new PrintWriter(Files.newBufferedWriter(outputFilePath))
 
@@ -345,7 +348,12 @@ def writeGenderStatsByGrouping(
           .sortBy(_._1)
           .foreach {
             case (groupingString, stats) =>
-              writeGenderStats(outputWriter, groupingString, stats, 1)
+              writeGenderStats(
+                outputWriter,
+                groupingStringProcessor(groupingString),
+                stats,
+                1
+              )
           }
 
         println()
@@ -358,7 +366,12 @@ def writeGenderStatsByGrouping(
 
 
 
-def writeGenderStats(outputWriter: PrintWriter, groupingString: String, stats: GenderStats, leadingSpacesCount: Int): Unit = {
+def writeGenderStats(
+                      outputWriter: PrintWriter,
+                      groupingString: String,
+                      stats: GenderStats,
+                      leadingSpacesCount: Int
+                    ): Unit = {
   println(s"${groupingString} --> ${stats}")
 
   val leadingSpaces =
@@ -377,7 +390,8 @@ def writeGenderStats(outputWriter: PrintWriter, groupingString: String, stats: G
 
 def writeGenderStatsByGroupingAndRelevance(
                                             outputFilePath: Path,
-                                            statsMap: Map[Int, Map[String, GenderStats]]
+                                            statsMap: Map[Int, Map[String, GenderStats]],
+                                            groupingStringProcessor: String => String
                                           ): Unit = {
   val outputWriter = new PrintWriter(Files.newBufferedWriter(outputFilePath))
 
@@ -399,7 +413,12 @@ def writeGenderStatsByGroupingAndRelevance(
     statsSortedByRelevance
       .foreach {
         case (groupingString, stats) =>
-          writeGenderStats(outputWriter, groupingString, stats, 0)
+          writeGenderStats(
+            outputWriter,
+            groupingStringProcessor(groupingString),
+            stats,
+            0
+          )
       }
 
     println()
@@ -422,8 +441,9 @@ def computeGenderStatsByBeginning(genderDirPath: Path, nouns: Iterable[GermanNou
   println()
 
   writeGenderStatsByGrouping(
-    genderDirPath.resolve("statsByBeginning.yml"),
-    genderStatsByBeginning
+    genderDirPath.resolve("byBeginning.yml"),
+    genderStatsByBeginning,
+    beginning => beginning + "-"
   )
 
   val filteredGenderStatsByBeginning =
@@ -434,8 +454,9 @@ def computeGenderStatsByBeginning(genderDirPath: Path, nouns: Iterable[GermanNou
     )
 
   writeGenderStatsByGroupingAndRelevance(
-    genderDirPath.resolve("statsByBeginningAndRelevance.yml"),
-    filteredGenderStatsByBeginning
+    genderDirPath.resolve("byBeginningAndRelevance.yml"),
+    filteredGenderStatsByBeginning,
+    beginning => beginning + "-"
   )
 
   println()
@@ -443,6 +464,19 @@ def computeGenderStatsByBeginning(genderDirPath: Path, nouns: Iterable[GermanNou
   println()
 }
 
+
+
+def computePlurals(outputDirPath: Path, nouns: Iterable[GermanNoun]): Unit = {
+  val pluralDirPath =
+    outputDirPath.resolve("plural")
+
+  Files.createDirectories(pluralDirPath)
+
+  computePluralsByEndingAndGender(
+    pluralDirPath,
+    nouns
+  )
+}
 
 
 
@@ -575,7 +609,7 @@ case class FrequencyCounter[T](items: Iterable[T]) {
 
 
 def computePluralsByEndingAndGender(
-                                     outputDirPath: Path,
+                                     pluralDirPath: Path,
                                      nouns: Iterable[GermanNoun],
                                      maxEndingLength: Int = 7,
                                      minNounsCountPerRule: Int = 50
@@ -584,7 +618,7 @@ def computePluralsByEndingAndGender(
   println("== COMPUTING PLURAL RULES BY ENDING AND GENDER ==")
   println()
 
-  val outputFilePath = outputDirPath.resolve("pluralByEndingAndGender.yml")
+  val outputFilePath = pluralDirPath.resolve("byEndingAndGender.yml")
 
   val nounsWithPlural =
     nouns
