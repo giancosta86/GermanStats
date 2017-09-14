@@ -3,6 +3,12 @@
 *Applying Data Mining to German linguistics*
 
 
+---
+## NOTE: GermanStats is now obsolete. Please, refer to the new [Valkyrie](https://github.com/giancosta86/Valkyrie) library.
+---
+
+
+
 ## Introduction
 
 **GermanStats** is an experimental project dedicated to applying *Data Mining* ideas and techniques to *German linguistics*, in order to infer rules about words.
